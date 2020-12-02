@@ -158,6 +158,44 @@ class Mesh {
 
 let mesh = null;
 
+let isShiftDown = false;
+let isSpacebarDown = false;
+
+let isWDown = false;
+let isADown = false;
+let isSDown = false;
+let isDDown = false;
+let frame = 0;
+
+let targetFPS = 30;
+
+function update() {
+    frame += 1;
+    if (isSpacebarDown) {
+        mesh.pos[1] = mesh.pos[1] + 2 / targetFPS;
+    } else if (isShiftDown) {
+        mesh.pos[1] = mesh.pos[1] - 2 / targetFPS;
+    }
+
+    if (isWDown) {
+        mesh.pos[2] = mesh.pos[2] + 2 / targetFPS;
+    } else if (isSDown) {
+        mesh.pos[2] = mesh.pos[2] - 2 / targetFPS;
+    }
+
+    if (isDDown) {
+        mesh.pos[0] = mesh.pos[0] + 2 / targetFPS;
+    } else if (isADown) {
+        mesh.pos[0] = mesh.pos[0] - 2 / targetFPS;
+    }
+
+    if ((frame % targetFPS) === 0) {
+        console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
+    }
+
+    mesh.update();
+}
+
 function onDOMReady() {
     // let el = document.createElementNS("http://www.w3.org/2000/svg", "path");
     // el.style.stroke = "black";
@@ -173,6 +211,38 @@ function onDOMReady() {
 
     mesh.update();
 
-    window.setInterval(() => { mesh.update(); }, 200);
+    window.setInterval(() => { update(); }, 1000 / targetFPS);
+
+    $("body")[0].addEventListener("keydown", function (e) {
+        if (e.key === " ") {
+            isSpacebarDown = true;
+        } else if (e.key === "Shift") {
+            isShiftDown = true;
+        } else if (e.key === "w") {
+            isWDown = true;
+        } else if (e.key === "a") {
+            isADown = true;
+        } else if (e.key === "s") {
+            isSDown = true;
+        } else if (e.key === "d") {
+            isDDown = true;
+        }
+    });
+
+    $("body")[0].addEventListener("keyup", function (e) {
+        if (e.key === " ") {
+            isSpacebarDown = false;
+        } else if (e.key === "Shift") {
+            isShiftDown = false;
+        } else if (e.key === "w") {
+            isWDown = false;
+        } else if (e.key === "a") {
+            isADown = false;
+        } else if (e.key === "s") {
+            isSDown = false;
+        } else if (e.key === "d") {
+            isDDown = false;
+        }
+    });
 }
 
