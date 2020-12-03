@@ -74,11 +74,12 @@ class Mesh {
                 [10, 40, 3], [90, 40, 9]
             ]
         ];
+        this.lines = [];
 
         this.transformedLines = [];
 
         this.pos = [0, 10, 10];
-        this.pos = [0, 5, 2];
+        this.pos = [0, 0, 20];
     }
 
     toViewport(vec) {
@@ -92,12 +93,12 @@ class Mesh {
         let yaw = 0;
 
         this.viewMatrix = math.rotationMatrix(pitch, math.matrix([1, 0, 0]));
-        this.viewMatrix = math.multiply(this.viewMatrix,
-            math.rotationMatrix(yaw, math.matrix([0, 1, 0])));
+        this.viewMatrix = math.multiply(
+            math.rotationMatrix(yaw, math.matrix([0, 1, 0])), this.viewMatrix);
         this.viewMatrix = math.resize(this.viewMatrix, [4, 4]);
         this.viewMatrix.subset(math.index(3, 3), 1);
 
-        this.viewMatrix = math.multiply(this.viewMatrix,
+        this.viewMatrix = math.multiply(
             math.matrix(
                 [
                     [1, 0, 0, -this.pos[0]],
@@ -105,17 +106,19 @@ class Mesh {
                     [0, 0, 1, -this.pos[2]],
                     [0, 0, 0, 1]
                 ]
-            ));
+            ), this.viewMatrix);
 
         let FOVDegr = 70;
         let halfFOVAngle = (FOVDegr / 2) * Math.PI / 180;
 
+        let heightFactor = 25;
+
         this.projectionMatrix = math.matrix(
             [
-                [Math.cos(halfFOVAngle), 0, 0, 0],
-                [0, Math.cos(halfFOVAngle), 0, 0],
+                [heightFactor * Math.cos(halfFOVAngle), 0, 0, 0],
+                [0, -heightFactor * Math.cos(halfFOVAngle), 0, 0],
                 [0, 0, 1, 0],
-                [0, 0, Math.sin(halfFOVAngle), 0]
+                [0, 0, -Math.sin(halfFOVAngle), 0]
             ]
         );
 
@@ -171,22 +174,24 @@ let targetFPS = 30;
 
 function update() {
     frame += 1;
+    let speed = 4;
+
     if (isSpacebarDown) {
-        mesh.pos[1] = mesh.pos[1] + 2 / targetFPS;
+        mesh.pos[1] = mesh.pos[1] + speed / targetFPS;
     } else if (isShiftDown) {
-        mesh.pos[1] = mesh.pos[1] - 2 / targetFPS;
+        mesh.pos[1] = mesh.pos[1] - speed / targetFPS;
     }
 
     if (isWDown) {
-        mesh.pos[2] = mesh.pos[2] + 2 / targetFPS;
+        mesh.pos[2] = mesh.pos[2] + speed / targetFPS;
     } else if (isSDown) {
-        mesh.pos[2] = mesh.pos[2] - 2 / targetFPS;
+        mesh.pos[2] = mesh.pos[2] - speed / targetFPS;
     }
 
     if (isDDown) {
-        mesh.pos[0] = mesh.pos[0] + 2 / targetFPS;
+        mesh.pos[0] = mesh.pos[0] + speed / targetFPS;
     } else if (isADown) {
-        mesh.pos[0] = mesh.pos[0] - 2 / targetFPS;
+        mesh.pos[0] = mesh.pos[0] - speed / targetFPS;
     }
 
     if ((frame % targetFPS) === 0) {
