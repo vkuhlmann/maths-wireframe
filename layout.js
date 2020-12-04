@@ -4,7 +4,6 @@ $(document).ready(function () {
     onDOMReady();
 });
 
-
 function getTetraederPoints(mesh) {
     let distanceBetweenPoints = 10.0;
     // a^2 = b^2 + c^2 - 2bc*cos()
@@ -144,31 +143,33 @@ class Mesh {
         const minZ = 1e-12;
 
         for (let l of this.lines) {
-            let output = {};
-            output.from = this.toViewspace(l[0]);
-            output.to = this.toViewspace(l[1]);
+            let outputDesc = {};
+            outputDesc.from = this.toViewspace(l[0]);
+            outputDesc.to = this.toViewspace(l[1]);
 
-            let behindCount = (output.from.subset(math.index(2)) > -minZ) + 
-                (output.to.subset(math.index(2)) > -minZ);
+            let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
+                (outputDesc.to.subset(math.index(2)) > -minZ);
 
             if (behindCount == 2) {
                 continue;
             } else if (behindCount == 1) {
-                if (output.from.subset(math.index(2)) > -minZ) {
-                    let swap = output.from;
-                    output.from = output.to;
-                    output.to = swap;
+                if (outputDesc.from.subset(math.index(2)) > -minZ) {
+                    let swap = outputDesc.from;
+                    outputDesc.from = outputDesc.to;
+                    outputDesc.to = swap;
                 }
 
-                let fromZ = output.from.subset(math.index(2)) + minZ;
-                let toZ = output.to.subset(math.index(2)) + minZ;
+                let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
+                let toZ = outputDesc.to.subset(math.index(2)) + minZ;
 
                 let frac = -fromZ / (toZ - fromZ);
-                output.to = math.add(math.multiply(math.subtract(output.to, output.from), frac), output.from);
+                outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
             }
 
-            output.from = this.toProjectedSpace(output.from);
-            output.to = this.toProjectedSpace(output.to);
+            outputDesc.from = this.toProjectedSpace(outputDesc.from);
+            outputDesc.to = this.toProjectedSpace(outputDesc.to);
+
+            let output = new ObscuredLine(outputDesc.from, outputDesc.to);
 
             // let coords = [];
             // for (let coord of l) {
@@ -187,14 +188,40 @@ class Mesh {
 
         this.el = document.createElementNS("http://www.w3.org/2000/svg", "g");
         for (let l of this.transformedLines) {
-            let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            lineEl.style.stroke = "black";
-            lineEl.style.strokeWidth = 0.8;
-            // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
-            lineEl.setAttribute("d", `M ${l.from.subset(math.index(0))} ${l.from.subset(math.index(1))} ` + 
-            `L ${l.to.subset(math.index(0))} ${l.to.subset(math.index(1))}`);
+            let to = l.from;
+            let from = l.from;
+            let obscured = true;
 
-            this.el.appendChild(lineEl);
+            l.obscurationSwitches.push(1);
+            for (let s of l.obscurationSwitches) {
+                from = to;
+                to = math.add(math.multiply(math.subtract(l.to, l.from), s), l.from);
+                obscured = !obscured;
+
+                let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                lineEl.style.strokeWidth = 0.8;
+
+                if (obscured) {
+                    lineEl.style.stroke = "red";
+                    lineEl.style.strokeDasharray = "2 2";
+                } else {
+                    lineEl.style.stroke = "black";
+                }
+                // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+                lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
+                    `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
+
+                this.el.appendChild(lineEl);
+            }
+
+            // let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            // lineEl.style.stroke = "black";
+            // lineEl.style.strokeWidth = 0.8;
+            // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+            // lineEl.setAttribute("d", `M ${l.from.subset(math.index(0))} ${l.from.subset(math.index(1))} ` + 
+            // `L ${l.to.subset(math.index(0))} ${l.to.subset(math.index(1))}`);
+
+            // this.el.appendChild(lineEl);
         }
 
         $("#viewport")[0].appendChild(this.el);
