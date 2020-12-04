@@ -84,6 +84,18 @@ class Mesh {
         this.yaw = 0;
     }
 
+    toViewspace(vec) {
+        let v = math.multiply(this.viewMatrix, math.matrix(vec).resize([4], 1));
+        v = math.multiply(v, 1.0 / Math.abs(v.subset(math.index(3))));
+        return v;
+    }
+
+    toProjectedSpace(vec) {
+        let v = math.multiply(this.projectionMatrix, math.matrix(vec).resize([4], 1));
+        v = math.multiply(v, 1.0 / Math.abs(v.subset(math.index(3))));
+        return v;
+    }
+
     toViewport(vec) {
         let v = math.multiply(this.matrixToViewPort, math.matrix(vec).resize([4], 1));
         v = math.multiply(v, 1.0 / v.subset(math.index(3)));
@@ -129,12 +141,41 @@ class Mesh {
         this.matrixToViewPort = math.multiply(this.projectionMatrix, this.viewMatrix);
 
         this.transformedLines = [];
+        const minZ = 1e-12;
+
         for (let l of this.lines) {
-            let coords = [];
-            for (let coord of l) {
-                coords.push(this.toViewport(coord));
+            let output = {};
+            output.from = this.toViewspace(l[0]);
+            output.to = this.toViewspace(l[1]);
+
+            let behindCount = (output.from.subset(math.index(2)) > -minZ) + 
+                (output.to.subset(math.index(2)) > -minZ);
+
+            if (behindCount == 2) {
+                continue;
+            } else if (behindCount == 1) {
+                if (output.from.subset(math.index(2)) > -minZ) {
+                    let swap = output.from;
+                    output.from = output.to;
+                    output.to = swap;
+                }
+
+                let fromZ = output.from.subset(math.index(2)) + minZ;
+                let toZ = output.to.subset(math.index(2)) + minZ;
+
+                let frac = -fromZ / (toZ - fromZ);
+                output.to = math.add(math.multiply(math.subtract(output.to, output.from), frac), output.from);
             }
-            this.transformedLines.push(coords);
+
+            output.from = this.toProjectedSpace(output.from);
+            output.to = this.toProjectedSpace(output.to);
+
+            // let coords = [];
+            // for (let coord of l) {
+            //     coords.push(this.toViewport(coord));
+            // }
+            // this.transformedLines.push(coords);
+            this.transformedLines.push(output);
         }
     }
 
@@ -149,7 +190,9 @@ class Mesh {
             let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
             lineEl.style.stroke = "black";
             lineEl.style.strokeWidth = 0.8;
-            lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+            // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+            lineEl.setAttribute("d", `M ${l.from.subset(math.index(0))} ${l.from.subset(math.index(1))} ` + 
+            `L ${l.to.subset(math.index(0))} ${l.to.subset(math.index(1))}`);
 
             this.el.appendChild(lineEl);
         }
