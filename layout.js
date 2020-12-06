@@ -220,7 +220,8 @@ class Mesh {
                 lineEl.style.strokeWidth = 0.8;
 
                 if (obscured) {
-                    lineEl.style.stroke = "red";
+                    lineEl.style.stroke = "black";
+                    // lineEl.style.stroke = "red";
                     lineEl.style.strokeDasharray = "2 2";
                 } else {
                     lineEl.style.stroke = "black";
