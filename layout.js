@@ -51,6 +51,12 @@ function getTetraederPoints(mesh) {
         mesh.lines.push([line[i], line[i + 1]]);
     }
 
+    let transf = math.identity(4);
+    mesh.addObscurationTriangle(new Triangle(point0, point1, point2).transform(transf));
+    mesh.addObscurationTriangle(new Triangle(point1, point2, point3).transform(transf));
+    mesh.addObscurationTriangle(new Triangle(point2, point3, point0).transform(transf));
+    mesh.addObscurationTriangle(new Triangle(point0, point1, point3).transform(transf));
+
     // mod->AddLines(points, transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point0, point1, point2 } *transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point1, point2, point3 } *transf);
@@ -73,14 +79,20 @@ class Mesh {
                 [10, 40, 3], [90, 40, 9]
             ]
         ];
+        this.obscurationTriangles = [];
 
         this.transformedLines = [];
+
 
         this.pos = math.matrix([0, 10, 10, 1]);
         this.pos = math.matrix([0, 0, 20, 1]);
 
         this.pitch = 0;
         this.yaw = 0;
+    }
+
+    addObscurationTriangle(tr) {
+        this.obscurationTriangles.push(tr);
     }
 
     toViewspace(vec) {
@@ -132,8 +144,8 @@ class Mesh {
             [
                 [heightFactor * Math.cos(halfFOVAngle), 0, 0, 0],
                 [0, -heightFactor * Math.cos(halfFOVAngle), 0, 0],
-                [0, 0, -1, 0],
-                [0, 0, -Math.sin(halfFOVAngle), 0]
+                [0, 0, 1, 1],
+                [0, 0, Math.sin(halfFOVAngle), 0]
             ]
         );
 
@@ -166,17 +178,21 @@ class Mesh {
                 outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
             }
 
-            outputDesc.from = this.toProjectedSpace(outputDesc.from);
-            outputDesc.to = this.toProjectedSpace(outputDesc.to);
+            let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
 
-            let output = new ObscuredLine(outputDesc.from, outputDesc.to);
+            for (let tr of this.obscurationTriangles) {
+                obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
+            }
+
+            // outputDesc.from = this.toProjectedSpace(outputDesc.from);
+            // outputDesc.to = this.toProjectedSpace(outputDesc.to);
 
             // let coords = [];
             // for (let coord of l) {
             //     coords.push(this.toViewport(coord));
             // }
             // this.transformedLines.push(coords);
-            this.transformedLines.push(output);
+            this.transformedLines.push(obscuredLine);
         }
     }
 
@@ -188,14 +204,16 @@ class Mesh {
 
         this.el = document.createElementNS("http://www.w3.org/2000/svg", "g");
         for (let l of this.transformedLines) {
-            let to = l.from;
-            let from = l.from;
+            let to = this.toProjectedSpace(l.from);
+            let from = this.toProjectedSpace(l.from);
             let obscured = true;
 
             l.obscurationSwitches.push(1);
             for (let s of l.obscurationSwitches) {
                 from = to;
-                to = math.add(math.multiply(math.subtract(l.to, l.from), s), l.from);
+                //to = math.add(math.multiply(math.subtract(l.to, l.from), s), l.from);
+                to = this.toProjectedSpace(l.getAtProgr(s));
+
                 obscured = !obscured;
 
                 let lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
