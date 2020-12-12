@@ -254,13 +254,13 @@ class Mesh {
 
 let mesh = null;
 
-let isShiftDown = false;
-let isSpacebarDown = false;
+// let isShiftDown = false;
+// let isSpacebarDown = false;
 
-let isWDown = false;
-let isADown = false;
-let isSDown = false;
-let isDDown = false;
+// let isWDown = false;
+// let isADown = false;
+// let isSDown = false;
+// let isDDown = false;
 let frame = 0;
 
 let isLookRightDown = false;
@@ -268,48 +268,57 @@ let isLookLeftDown = false;
 let isLookUpDown = false;
 let isLookDownDown = false;
 
+const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "6", "4", "8", "2"];
+let keyStates = {};
+
 let targetFPS = 30;
 
 function update() {
     frame += 1;
     let speed = 4;
 
-    if (isSpacebarDown) {
+    let nowTimestamp = new Date().getTime();
+
+    for (let a in keyStates) {
+        if (keyStates[a] && nowTimestamp > keyStates[a][1])
+            keyStates[a] = null;
+    }
+
+    if (keyStates["Space"]) {
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [0, speed / targetFPS, 0, 0]));
         //mesh.pos[1] = mesh.pos[1] + speed / targetFPS;
-    } else if (isShiftDown) {
+    } else if (keyStates["Shift"]) {
         //mesh.pos[1] = mesh.pos[1] - speed / targetFPS;
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [0, -speed / targetFPS, 0, 0]));
     }
 
-    if (isWDown) {
+    if (keyStates["KeyW"]) {
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [0, 0, -speed / targetFPS, 0]));
         //mesh.pos[2] = mesh.pos[2] + speed / targetFPS;
-    } else if (isSDown) {
+    } else if (keyStates["KeyS"]) {
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [0, 0, speed / targetFPS, 0]));
         //mesh.pos[2] = mesh.pos[2] - speed / targetFPS;
     }
 
-    if (isDDown) {
+    if (keyStates["KeyD"]) {
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [speed / targetFPS, 0, 0, 0]));
         //mesh.pos[0] = mesh.pos[0] + speed / targetFPS;
-    } else if (isADown) {
+    } else if (keyStates["KeyA"]) {
         mesh.pos = math.add(mesh.pos, math.multiply(mesh.viewInverse, [-speed / targetFPS, 0, 0, 0]));
         //mesh.pos[0] = mesh.pos[0] - speed / targetFPS;
     }
 
-    if (isLookRightDown) {
+    if (keyStates["6"]) {
         mesh.yaw += Math.PI / (2 * targetFPS);
-    } else if (isLookLeftDown) {
+    } else if (keyStates["4"]) {
         mesh.yaw -= Math.PI / (2 * targetFPS);
     }
 
-    if (isLookDownDown) {
+    if (keyStates["2"]) {
         mesh.pitch += Math.PI / (2 * targetFPS);
-    } else if (isLookUpDown) {
+    } else if (keyStates["8"]) {
         mesh.pitch -= Math.PI / (2 * targetFPS);
     }
-
 
     if ((frame % (5 * targetFPS)) === 0) {
         //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
@@ -320,6 +329,8 @@ function update() {
 
     mesh.update();
 }
+
+const useRepeatingAntiGhost = true;
 
 function onDOMReady() {
     // let el = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -339,51 +350,101 @@ function onDOMReady() {
     window.setInterval(() => { update(); }, 1000 / targetFPS);
 
     $("body")[0].addEventListener("keydown", function (e) {
-        if (e.key === " ") {
-            isSpacebarDown = true;
-        } else if (e.key === "Shift") {
-            isShiftDown = true;
-        } else if (e.key === "w") {
-            isWDown = true;
-        } else if (e.key === "a") {
-            isADown = true;
-        } else if (e.key === "s") {
-            isSDown = true;
-        } else if (e.key === "d") {
-            isDDown = true;
-        } else if (e.key === "6") {
-            isLookRightDown = true;
-        } else if (e.key === "4") {
-            isLookLeftDown = true;
-        } else if (e.key === "8") {
-            isLookUpDown = true;
-        } else if (e.key === "2") {
-            isLookDownDown = true;
+        let isRelevant = true;
+        let nowTimestamp = new Date().getTime();
+
+        let id = e.code;
+        if (!listenKeys.includes(id))
+            id = e.key;
+        if (listenKeys.includes(id)) {
+            let val = keyStates[id];
+            if (val) {
+                let delta = nowTimestamp - val[0];
+                keyStates[id] = [nowTimestamp, nowTimestamp + 5 * delta];
+            } else {
+                keyStates[id] = [nowTimestamp, Infinity];
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
         }
+
+        // if (e.key === " ") {
+        //     isSpacebarDown = true;
+        // } else if (e.key === "Shift") {
+        //     isShiftDown = true;
+        // } else if (e.key === "w") {
+        //     if (isWDown) {
+        //         let delta = nowTimestamp - isWDown[0];
+        //         isWDown[nowTimestamp, nowTimestamp + 5 * delta];
+        //     } else {
+        //         isWDown = [nowTimestamp, Infinity];
+        //     }
+
+        //     //isWDown = true;
+        //     isWDown += 1;
+        //     if ((isWDown % 20) == 1)
+        //         console.log(`w: ${isWDown}`);
+
+        // } else if (e.key === "a") {
+        //     isADown = true;
+        // } else if (e.key === "s") {
+        //     isSDown = true;
+        // } else if (e.key === "d") {
+        //     isDDown = true;
+        // } else if (e.key === "6") {
+        //     isLookRightDown = true;
+        // } else if (e.key === "4") {
+        //     isLookLeftDown = true;
+        // } else if (e.key === "8") {
+        //     isLookUpDown = true;
+        // } else if (e.key === "2") {
+        //     isLookDownDown = true;
+        // } else {
+        //     isRelevant = false;
+        // }
+        // if (isRelevant) {
+        //     e.preventDefault();
+        //     e.stopPropagation();
+        // }
     });
 
     $("body")[0].addEventListener("keyup", function (e) {
-        if (e.key === " ") {
-            isSpacebarDown = false;
-        } else if (e.key === "Shift") {
-            isShiftDown = false;
-        } else if (e.key === "w") {
-            isWDown = false;
-        } else if (e.key === "a") {
-            isADown = false;
-        } else if (e.key === "s") {
-            isSDown = false;
-        } else if (e.key === "d") {
-            isDDown = false;
-        } else if (e.key === "6") {
-            isLookRightDown = false;
-        } else if (e.key === "4") {
-            isLookLeftDown = false;
-        } else if (e.key === "8") {
-            isLookUpDown = false;
-        } else if (e.key === "2") {
-            isLookDownDown = false;
+        let id = e.code;
+        if (!listenKeys.includes(id))
+            id = e.key;
+        if (listenKeys.includes(id)) {
+            keyStates[id] = null;
+
+            e.preventDefault();
+            e.stopPropagation();
         }
+        // let isRelevant = true;
+        // if (e.key === " ") {
+        //     isSpacebarDown = false;
+        // } else if (e.key === "Shift") {
+        //     isShiftDown = false;
+        // } else if (e.key === "w") {
+        //     isWDown = false;
+        // } else if (e.key === "a") {
+        //     isADown = false;
+        // } else if (e.key === "s") {
+        //     isSDown = false;
+        // } else if (e.key === "d") {
+        //     isDDown = false;
+        // } else if (e.key === "6") {
+        //     isLookRightDown = false;
+        // } else if (e.key === "4") {
+        //     isLookLeftDown = false;
+        // } else if (e.key === "8") {
+        //     isLookUpDown = false;
+        // } else if (e.key === "2") {
+        //     isLookDownDown = false;
+        // }
+        // if (isRelevant) {
+        //     e.preventDefault();
+        //     e.stopPropagation();
+        // }
     });
 }
 
