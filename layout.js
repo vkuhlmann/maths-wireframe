@@ -57,6 +57,11 @@ function getTetraederPoints(mesh) {
     mesh.addObscurationTriangle(new Triangle(point2, point3, point0).transform(transf));
     mesh.addObscurationTriangle(new Triangle(point0, point1, point3).transform(transf));
 
+    mesh.addPoint(point0);
+    mesh.addPoint(point1);
+    mesh.addPoint(point2);
+    mesh.addPoint(point3);
+
     // mod->AddLines(points, transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point0, point1, point2 } *transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point1, point2, point3 } *transf);
@@ -80,8 +85,8 @@ class Mesh {
             ]
         ];
         this.obscurationTriangles = [];
-
         this.transformedLines = [];
+        this.points = [];
 
         this.pos = math.matrix([0, 10, 10, 1]);
         this.pos = math.matrix([0, 0, 20, 1]);
@@ -106,6 +111,10 @@ class Mesh {
         } else {
             this.yaw = 0.0;
         }
+    }
+
+    addPoint(p) {
+        this.points.push(p);
     }
 
     addObscurationTriangle(tr) {
@@ -258,6 +267,23 @@ class Mesh {
             // `L ${l.to.subset(math.index(0))} ${l.to.subset(math.index(1))}`);
 
             // this.el.appendChild(lineEl);
+        }
+
+        for (let p of this.points) {
+            let circleEl = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            let transformedP = this.toViewport(p);
+
+            circleEl.style.r = `1px`;
+            circleEl.style.cx = `${-transformedP.subset(math.index(0))}px`;
+            circleEl.style.cy = `${-transformedP.subset(math.index(1))}px`;
+
+            circleEl.style.fill = "black";
+
+                // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+                // lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
+                //     `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
+
+            this.el.appendChild(circleEl);
         }
 
         $("#viewport")[0].appendChild(this.el);
