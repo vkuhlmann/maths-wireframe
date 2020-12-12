@@ -97,7 +97,15 @@ class Mesh {
         diff = math.divide(diff, math.norm(diff));
 
         this.pitch = -Math.asin(diff.subset(math.index(1)));
-        this.yaw = Math.asin(diff.subset(math.index(0)) / Math.cos(this.pitch));
+        //this.yaw = Math.sign(diff.subset(math.index(0))) * Math.acos(diff.subset(math.index(2)) / Math.cos(this.pitch));
+        diff = diff.subset(math.index(1), 0.0)
+        let n = math.norm(diff);
+        if (n > 1e-6) {
+            diff = math.divide(diff, n);
+            this.yaw = Math.sign(diff.subset(math.index(0))) * Math.acos(-diff.subset(math.index(2)))
+        } else {
+            this.yaw = 0.0;
+        }
     }
 
     addObscurationTriangle(tr) {
