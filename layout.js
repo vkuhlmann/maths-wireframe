@@ -83,12 +83,21 @@ class Mesh {
 
         this.transformedLines = [];
 
-
         this.pos = math.matrix([0, 10, 10, 1]);
         this.pos = math.matrix([0, 0, 20, 1]);
 
         this.pitch = 0;
         this.yaw = 0;
+
+        this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
+    }
+
+    faceFocus() {
+        let diff = math.subtract(this.focus, this.pos);
+        diff = math.divide(diff, math.norm(diff));
+
+        this.pitch = -Math.asin(diff.subset(math.index(1)));
+        this.yaw = Math.asin(diff.subset(math.index(0)) / Math.cos(this.pitch));
     }
 
     addObscurationTriangle(tr) {
@@ -254,19 +263,7 @@ class Mesh {
 
 let mesh = null;
 
-// let isShiftDown = false;
-// let isSpacebarDown = false;
-
-// let isWDown = false;
-// let isADown = false;
-// let isSDown = false;
-// let isDDown = false;
 let frame = 0;
-
-let isLookRightDown = false;
-let isLookLeftDown = false;
-let isLookUpDown = false;
-let isLookDownDown = false;
 
 const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "6", "4", "8", "2"];
 let keyStates = {};
@@ -320,6 +317,8 @@ function update() {
         mesh.pitch -= Math.PI / (2 * targetFPS);
     }
 
+    mesh.faceFocus();
+
     if ((frame % (5 * targetFPS)) === 0) {
         //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
         console.log(`x=${mesh.pos.subset(math.index(0)).toFixed(2)}, ` +
@@ -368,45 +367,6 @@ function onDOMReady() {
             e.preventDefault();
             e.stopPropagation();
         }
-
-        // if (e.key === " ") {
-        //     isSpacebarDown = true;
-        // } else if (e.key === "Shift") {
-        //     isShiftDown = true;
-        // } else if (e.key === "w") {
-        //     if (isWDown) {
-        //         let delta = nowTimestamp - isWDown[0];
-        //         isWDown[nowTimestamp, nowTimestamp + 5 * delta];
-        //     } else {
-        //         isWDown = [nowTimestamp, Infinity];
-        //     }
-
-        //     //isWDown = true;
-        //     isWDown += 1;
-        //     if ((isWDown % 20) == 1)
-        //         console.log(`w: ${isWDown}`);
-
-        // } else if (e.key === "a") {
-        //     isADown = true;
-        // } else if (e.key === "s") {
-        //     isSDown = true;
-        // } else if (e.key === "d") {
-        //     isDDown = true;
-        // } else if (e.key === "6") {
-        //     isLookRightDown = true;
-        // } else if (e.key === "4") {
-        //     isLookLeftDown = true;
-        // } else if (e.key === "8") {
-        //     isLookUpDown = true;
-        // } else if (e.key === "2") {
-        //     isLookDownDown = true;
-        // } else {
-        //     isRelevant = false;
-        // }
-        // if (isRelevant) {
-        //     e.preventDefault();
-        //     e.stopPropagation();
-        // }
     });
 
     $("body")[0].addEventListener("keyup", function (e) {
@@ -419,32 +379,6 @@ function onDOMReady() {
             e.preventDefault();
             e.stopPropagation();
         }
-        // let isRelevant = true;
-        // if (e.key === " ") {
-        //     isSpacebarDown = false;
-        // } else if (e.key === "Shift") {
-        //     isShiftDown = false;
-        // } else if (e.key === "w") {
-        //     isWDown = false;
-        // } else if (e.key === "a") {
-        //     isADown = false;
-        // } else if (e.key === "s") {
-        //     isSDown = false;
-        // } else if (e.key === "d") {
-        //     isDDown = false;
-        // } else if (e.key === "6") {
-        //     isLookRightDown = false;
-        // } else if (e.key === "4") {
-        //     isLookLeftDown = false;
-        // } else if (e.key === "8") {
-        //     isLookUpDown = false;
-        // } else if (e.key === "2") {
-        //     isLookDownDown = false;
-        // }
-        // if (isRelevant) {
-        //     e.preventDefault();
-        //     e.stopPropagation();
-        // }
     });
 }
 
