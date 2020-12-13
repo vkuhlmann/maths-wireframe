@@ -29,8 +29,26 @@ function importFromFileEvent(e) {
             }
 
             result.getData(new zip.TextWriter(), function(text) {
-                console.log(text);
                 zipReader.close(() => {});
+                //console.log(text);
+
+                let parser = new DOMParser();
+                let xmlParsed = parser.parseFromString(text, "text/xml");
+                
+                let pointsXML = xmlParsed.querySelectorAll("geogebra > construction > element[type='point3d']");
+                for (let p of pointsXML) {
+                    let coordsXML = p.querySelector("coords");
+                    //console.log(coordsXML.outerHTML);
+                    let point = [
+                        parseFloat(coordsXML.getAttribute("x")),
+                        parseFloat(coordsXML.getAttribute("y")),
+                        parseFloat(coordsXML.getAttribute("z")),
+                        parseFloat(coordsXML.getAttribute("w"))
+                    ];
+
+                    mesh.addPoint(point);
+                }
+
             }, function(current, total) {
                 // onprogress
             });
