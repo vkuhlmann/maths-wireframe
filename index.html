@@ -18,6 +18,11 @@
 
     <script src="layout.js"></script>
     <script src="obscuration.js"></script>
+
+    <script src="zipjs/zip.js"></script>
+    <script>
+        zip.workerScriptsPath = "zipjs/";
+    </script>
 </head>
 
 <body>
@@ -35,6 +40,9 @@
                         <!--Home <span class="sr-only">(current)</span>-->
                         WIP
                     </a>
+                </li>
+                <li>
+                    <input id="import-file" type="file" >
                 </li>
                 <!--<li class="nav-item">
                     <a class="nav-link" href="#">About</a>

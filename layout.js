@@ -2,7 +2,43 @@
 
 $(document).ready(function () {
     onDOMReady();
+
+    $("#import-file").on("change", importFromFileEvent);
 });
+
+function onZipError(message) {
+    alert(message);
+}
+
+function importFromFileEvent(e) {
+    let a = e.target.files[0];
+    let blobReader = new zip.BlobReader(a);
+    zip.createReader(blobReader, (zipReader) => {
+        zipReader.getEntries((arr) => {
+            let result = null;
+            for (let entry of arr) {
+                if (entry.filename === "geogebra.xml") {
+                    result = entry;
+                    break;
+                }
+            }
+
+            if (result == null) {
+                onZipError("Unknown data structure");
+                return;
+            }
+
+            result.getData(new zip.TextWriter(), function(text) {
+                console.log(text);
+                zipReader.close(() => {});
+            }, function(current, total) {
+                // onprogress
+            });
+
+            console.log(arr);
+        });
+    }, onZipError);
+}
 
 function getTetraederPoints(mesh) {
     let distanceBetweenPoints = 10.0;
