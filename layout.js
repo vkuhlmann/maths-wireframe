@@ -1,9 +1,28 @@
 "use strict";
 
+let isFocusToggled = false;
+
 $(document).ready(function () {
     onDOMReady();
 
     $("#import-file").on("change", importFromFileEvent);
+
+    toggleFocus = () => {
+        if (isFocusToggled) {
+            isFocusToggled = false;
+            $("#toggleFocus").removeClass("toggled");
+        } else {
+            isFocusToggled = true;
+            $("#toggleFocus").addClass("toggled");
+        }
+    };
+
+    $("#toggleFocus").click((e) => {
+        toggleFocus();
+    });
+
+    toggleFocus();
+
 });
 
 function onZipError(message) {
@@ -405,7 +424,8 @@ function update() {
         mesh.pitch -= Math.PI / (2 * targetFPS);
     }
 
-    mesh.faceFocus();
+    if (isFocusToggled)
+        mesh.faceFocus();
 
     if ((frame % (5 * targetFPS)) === 0) {
         //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
@@ -417,7 +437,7 @@ function update() {
     mesh.update();
 }
 
-const useRepeatingAntiGhost = true;
+const useRepeatingAntiGhost = false;
 
 function onDOMReady() {
     // let el = document.createElementNS("http://www.w3.org/2000/svg", "path");
