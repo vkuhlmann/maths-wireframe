@@ -97,29 +97,51 @@ class GeoGebraReader {
         }
     }
 
+    parseCube(xml) {
+        let input = xml.querySelector("input");
+        let output = xml.querySelector("output");
+
+        let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
+        output.getAttribute("a1"), output.getAttribute("a2"), output.getAttribute("a3"),
+        output.getAttribute("a4"), output.getAttribute("a5")];
+        let faceLabels = {};
+        faceLabels[output.getAttribute("a6")] = [pointLabels[0], pointLabels[1], pointLabels[2], pointLabels[3]];
+        faceLabels[output.getAttribute("a7")] = [pointLabels[0], pointLabels[3], pointLabels[7], pointLabels[4]];
+        faceLabels[output.getAttribute("a8")] = [pointLabels[0], pointLabels[1], pointLabels[5], pointLabels[4]];
+        faceLabels[output.getAttribute("a9")] = [pointLabels[1], pointLabels[2], pointLabels[6], pointLabels[5]];
+        faceLabels[output.getAttribute("a10")] = [pointLabels[2], pointLabels[3], pointLabels[7], pointLabels[6]];
+        faceLabels[output.getAttribute("a11")] = [pointLabels[4], pointLabels[5], pointLabels[6], pointLabels[7]];
+
+        let edgeLabels = {};
+        edgeLabels[output.getAttribute("a12")] = [pointLabels[0], pointLabels[3]];
+        edgeLabels[output.getAttribute("a13")] = [pointLabels[0], pointLabels[1]];
+        edgeLabels[output.getAttribute("a14")] = [pointLabels[1], pointLabels[2]];
+        edgeLabels[output.getAttribute("a15")] = [pointLabels[2], pointLabels[3]];
+        edgeLabels[output.getAttribute("a16")] = [pointLabels[0], pointLabels[4]];
+        edgeLabels[output.getAttribute("a17")] = [pointLabels[3], pointLabels[7]];
+        edgeLabels[output.getAttribute("a18")] = [pointLabels[4], pointLabels[7]];
+        edgeLabels[output.getAttribute("a19")] = [pointLabels[4], pointLabels[5]];
+        edgeLabels[output.getAttribute("a20")] = [pointLabels[1], pointLabels[5]];
+        edgeLabels[output.getAttribute("a21")] = [pointLabels[5], pointLabels[6]];
+        edgeLabels[output.getAttribute("a22")] = [pointLabels[2], pointLabels[6]];
+        edgeLabels[output.getAttribute("a23")] = [pointLabels[6], pointLabels[7]];
+
+        for (let e of Object.values(edgeLabels)) {
+            mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
+        }
+
+        for (let f of Object.values(faceLabels)) {
+            
+        }
+    }
+
     parseCommands() {
         let commands = this.xmlParsed.querySelectorAll("geogebra > construction > command");
         for (let command of commands) {
             switch (command.getAttribute("name")) {
                 case "Cube": {
                     console.log("Got a cube");
-                    let input = command.querySelector("input");
-                    let output = command.querySelector("output");
-
-                    let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
-                    output.getAttribute("a1"), output.getAttribute("a2"), output.getAttribute("a3"),
-                    output.getAttribute("a4"), output.getAttribute("a5")];
-                    let faceLabels = {};
-                    faceLabels[output.getAttribute("a6")] = [pointLabels[0], pointLabels[1], pointLabels[2], pointLabels[3]];
-
-                    let edgeLabels = {};
-                    edgeLabels[output.getAttribute("a12")] = [pointLabels[0], pointLabels[3]];
-                    edgeLabels[output.getAttribute("a13")] = [pointLabels[0], pointLabels[1]];
-                    edgeLabels[output.getAttribute("a14")] = [pointLabels[1], pointLabels[2]];
-
-                    for (let e of Object.values(edgeLabels)) {
-                        mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
-                    }
+                    this.parseCube(command);
                     break;
                 }
 
