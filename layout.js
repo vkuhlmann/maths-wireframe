@@ -247,6 +247,8 @@ class Mesh {
         this.pitch = 0;
         this.yaw = 0;
 
+        this.frame = 0;
+
         this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
     }
 
@@ -330,9 +332,23 @@ class Mesh {
 
         this.matrixToViewPort = math.multiply(this.projectionMatrix, this.viewMatrix);
 
-        this.transformedLines = [];
         const minZ = 1e-12;
+        this.frame += 1;
+        let recalculateObscuration = (frame % 30) == 1;
 
+        if (recalculateObscuration) {
+            this.recalculateObscuration();
+        } else {
+            for (let l of this.transformedLines) {
+                l.from = this.toViewspace(l.origFrom);
+                l.to = this.toViewspace(l.origTo);
+            }
+        }
+
+    }
+
+    recalculateObscuration() {
+        this.newTransformedLines = [];
         for (let l of this.lines) {
             let outputDesc = {};
             outputDesc.from = this.toViewspace(l[0]);
@@ -358,6 +374,8 @@ class Mesh {
             }
 
             let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
+            obscuredLine.origFrom = l[0];
+            obscuredLine.origTo = l[1];
 
             for (let tr of this.obscurationTriangles) {
                 obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
@@ -371,8 +389,9 @@ class Mesh {
             //     coords.push(this.toViewport(coord));
             // }
             // this.transformedLines.push(coords);
-            this.transformedLines.push(obscuredLine);
+            this.newTransformedLines.push(obscuredLine);
         }
+        this.transformedLines = this.newTransformedLines;
     }
 
     updateRender() {
