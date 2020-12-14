@@ -31,53 +31,109 @@ function onZipError(message) {
 
 function importFromFileEvent(e) {
     let a = e.target.files[0];
-    let blobReader = new zip.BlobReader(a);
-    zip.createReader(blobReader, (zipReader) => {
-        zipReader.getEntries((arr) => {
-            let result = null;
-            for (let entry of arr) {
-                if (entry.filename === "geogebra.xml") {
-                    result = entry;
-                    break;
-                }
-            }
-
-            if (result == null) {
-                onZipError("Unknown data structure");
-                return;
-            }
-
-            result.getData(new zip.TextWriter(), function(text) {
-                zipReader.close(() => {});
-                //console.log(text);
-
-                let parser = new DOMParser();
-                let xmlParsed = parser.parseFromString(text, "text/xml");
-                
-                let pointsXML = xmlParsed.querySelectorAll("geogebra > construction > element[type='point3d']");
-                for (let p of pointsXML) {
-                    let coordsXML = p.querySelector("coords");
-                    //console.log(coordsXML.outerHTML);
-                    let point = [
-                        parseFloat(coordsXML.getAttribute("x")),
-                        parseFloat(coordsXML.getAttribute("y")),
-                        parseFloat(coordsXML.getAttribute("z")),
-                        parseFloat(coordsXML.getAttribute("w"))
-                    ];
-
-                    mesh.addPoint(point);
-                }
-
-            }, function(current, total) {
-                // onprogress
-            });
-
-            console.log(arr);
-        });
-    }, onZipError);
+    let r = new GeoGebraReader(a, () => {
+        r.addPoints(mesh);
+        r.parseCommands();
+    });
 }
 
-function getTetraederPoints(mesh) {
+class GeoGebraReader {
+    constructor(a, callback) {
+        let blobReader = new zip.BlobReader(a);
+        this.facesMap = {};
+        this.edgesMap = {};
+        this.pointsMap = {};
+
+        const that = this;
+
+        zip.createReader(blobReader, (zipReader) => {
+            zipReader.getEntries((arr) => {
+                let result = null;
+                for (let entry of arr) {
+                    if (entry.filename === "geogebra.xml") {
+                        result = entry;
+                        break;
+                    }
+                }
+
+                if (result == null) {
+                    onZipError("Unknown data structure");
+                    return;
+                }
+
+                result.getData(new zip.TextWriter(), function (text) {
+                    zipReader.close(() => { });
+                    //console.log(text);
+
+                    let parser = new DOMParser();
+
+                    that.xmlParsed = parser.parseFromString(text, "text/xml");
+                    callback();
+
+                }, function (current, total) {
+                    // onprogress
+                });
+
+                console.log(arr);
+            });
+        }, onZipError);
+    }
+
+    addPoints(m) {
+        let pointsXML = this.xmlParsed.querySelectorAll("geogebra > construction > element[type='point3d']");
+        for (let p of pointsXML) {
+            let coordsXML = p.querySelector("coords");
+            //console.log(coordsXML.outerHTML);
+            let point = [
+                parseFloat(coordsXML.getAttribute("x")),
+                parseFloat(coordsXML.getAttribute("y")),
+                parseFloat(coordsXML.getAttribute("z")),
+                parseFloat(coordsXML.getAttribute("w"))
+            ];
+
+            this.pointsMap[p.getAttribute("label")] = point;
+
+            m.addPoint(point);
+        }
+    }
+
+    parseCommands() {
+        let commands = this.xmlParsed.querySelectorAll("geogebra > construction > command");
+        for (let command of commands) {
+            switch (command.getAttribute("name")) {
+                case "Cube": {
+                    console.log("Got a cube");
+                    let input = command.querySelector("input");
+                    let output = command.querySelector("output");
+
+                    let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
+                    output.getAttribute("a1"), output.getAttribute("a2"), output.getAttribute("a3"),
+                    output.getAttribute("a4"), output.getAttribute("a5")];
+                    let faceLabels = {};
+                    faceLabels[output.getAttribute("a6")] = [pointLabels[0], pointLabels[1], pointLabels[2], pointLabels[3]];
+
+                    let edgeLabels = {};
+                    edgeLabels[output.getAttribute("a12")] = [pointLabels[0], pointLabels[3]];
+                    edgeLabels[output.getAttribute("a13")] = [pointLabels[0], pointLabels[1]];
+                    edgeLabels[output.getAttribute("a14")] = [pointLabels[1], pointLabels[2]];
+
+                    for (let e of Object.values(edgeLabels)) {
+                        mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
+                    }
+                    break;
+                }
+
+                default: {
+                    console.log(`Warning: unknown GeoGebra command ${command.getAttribute("name")}`);
+                    break;
+                }
+
+            }
+        }
+    }
+}
+
+function getTetrahedronPoints(mesh) {
     let distanceBetweenPoints = 10.0;
     // a^2 = b^2 + c^2 - 2bc*cos()
     // a^2 = 2*b^2 - b*b^2 * cos()
@@ -352,9 +408,9 @@ class Mesh {
 
             circleEl.style.fill = "black";
 
-                // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
-                // lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
-                //     `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
+            // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+            // lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
+            //     `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
 
             this.el.appendChild(circleEl);
         }
@@ -450,7 +506,7 @@ function onDOMReady() {
     mesh = new Mesh();
     mesh.update();
 
-    getTetraederPoints(mesh);
+    getTetrahedronPoints(mesh);
 
     mesh.update();
 
