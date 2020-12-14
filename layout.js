@@ -130,8 +130,10 @@ class GeoGebraReader {
             mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
         }
 
+        let transf = math.identity(4);
         for (let f of Object.values(faceLabels)) {
-            
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[1]], this.pointsMap[f[2]]).transform(transf));
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[2]], this.pointsMap[f[3]]).transform(transf));
         }
     }
 
