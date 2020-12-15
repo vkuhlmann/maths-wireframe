@@ -383,14 +383,14 @@ class Mesh {
     }
 
     receiveObscuredLines(obj) {
-        console.log(`Received: ${JSON.stringify(obj)}`);
+        //console.log(`Received: ${JSON.stringify(obj)}`);
 
         let newObscuredLines = [];
 
         for (let l of obj) {
             newObscuredLines.push(ObscuredLine.deserialize(l));
         }
-        console.log(`newObscuredLines = ${newObscuredLines}`);
+        //console.log(`newObscuredLines = ${newObscuredLines}`);
         this.transformedLines = newObscuredLines;
     }
 
@@ -532,7 +532,7 @@ let mesh = null;
 
 let frame = 0;
 
-const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "6", "4", "8", "2"];
+const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "Numpad6", "Numpad4", "Numpad8", "Numpad2"];
 let keyStates = {};
 
 let targetFPS = 30;
@@ -541,11 +541,13 @@ function update() {
     frame += 1;
     let speed = 4;
 
-    let nowTimestamp = new Date().getTime();
+    if (useRepeatingAntiGhost) {
+        let nowTimestamp = new Date().getTime();
 
-    for (let a in keyStates) {
-        if (keyStates[a] && nowTimestamp > keyStates[a][1])
-            keyStates[a] = null;
+        for (let a in keyStates) {
+            if (keyStates[a] && nowTimestamp > keyStates[a][1])
+                keyStates[a] = null;
+        }
     }
 
     if (keyStates["Space"]) {
@@ -572,15 +574,15 @@ function update() {
         //mesh.pos[0] = mesh.pos[0] - speed / targetFPS;
     }
 
-    if (keyStates["6"]) {
+    if (keyStates["Numpad6"]) {
         mesh.yaw += Math.PI / (2 * targetFPS);
-    } else if (keyStates["4"]) {
+    } else if (keyStates["Numpad4"]) {
         mesh.yaw -= Math.PI / (2 * targetFPS);
     }
 
-    if (keyStates["2"]) {
+    if (keyStates["Numpad2"]) {
         mesh.pitch += Math.PI / (2 * targetFPS);
-    } else if (keyStates["8"]) {
+    } else if (keyStates["Numpad8"]) {
         mesh.pitch -= Math.PI / (2 * targetFPS);
     }
 
@@ -630,6 +632,8 @@ function onDOMReady() {
                 keyStates[id] = [nowTimestamp, nowTimestamp + 5 * delta];
             } else {
                 keyStates[id] = [nowTimestamp, Infinity];
+                console.log(`Key ${id} down`);
+                console.log(`  ${keyStates}`);
             }
 
             e.preventDefault();
@@ -643,6 +647,9 @@ function onDOMReady() {
             id = e.key;
         if (listenKeys.includes(id)) {
             keyStates[id] = null;
+
+            console.log(`Key ${id} up`);
+            console.log(`  ${keyStates}`);
 
             e.preventDefault();
             e.stopPropagation();

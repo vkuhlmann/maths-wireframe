@@ -28,7 +28,7 @@ function deserializeObscurationInput(s) {
 // }
 
 onmessage = function(e) {
-    console.log("Recalculating...");
+    //console.log("Recalculating...");
     //console.log(`e.data = ${JSON.stringify(e.data)}`);
     //let ans = calculateObscuredLines(e.data);
     let deserialized = deserializeObscurationInput(e.data);
