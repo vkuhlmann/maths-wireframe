@@ -22,23 +22,12 @@ function deserializeObscurationInput(s) {
     return obj;
 }
 
-// function calculateObscuredLines(mesh) {
-//     mesh.recalculateObscuration();
-//     return mesh.transformedLines;
-// }
-
 onmessage = function(e) {
-    //console.log("Recalculating...");
-    //console.log(`e.data = ${JSON.stringify(e.data)}`);
-    //let ans = calculateObscuredLines(e.data);
     let deserialized = deserializeObscurationInput(e.data);
-    //debugger;
     let ans = calculateObscuredLines(deserialized);
-    //console.log(`ans = ${ans}`);
     let obscLines = [];
     for (let l of ans) {
         obscLines.push(l.serialize());
     }
-    //console.log(`Answering \r\n${JSON.stringify(obscLines, null, 4)}`);
     postMessage(obscLines);
 }

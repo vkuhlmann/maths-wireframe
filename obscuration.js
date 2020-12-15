@@ -56,7 +56,6 @@ function normalizeW(v) {
 class Triangle {
     constructor(p0, p1, p2) {
         if (p1 === undefined) {
-            //console.log(`Parsing ${p0["0"]}`);
             this[0] = JSON.parse(p0["0"], math.reviver);
             this[1] = JSON.parse(p0["1"], math.reviver);
             this[2] = JSON.parse(p0["2"], math.reviver);

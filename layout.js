@@ -215,8 +215,6 @@ function getTetrahedronPoints(mesh) {
     mesh.addPoint(point2);
     mesh.addPoint(point3);
 
-    console.log(JSON.stringify(math.matrix(point0), math.replacer));
-
     // mod->AddLines(points, transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point0, point1, point2 } *transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point1, point2, point3 } *transf);
@@ -260,7 +258,7 @@ class Mesh {
             currMesh.launchObscurationWorker();
         }
         this.obscurationWorker.onerror = function (e) {
-            console.log("Error in obscurationworker: " + e.message);
+            console.log("Error in obscurationWorker: " + e.message);
             console.log(`At line ${e.lineno} of ${e.filename}`);
         }
         this.isObscurationWorkerRunning = false;
@@ -383,76 +381,16 @@ class Mesh {
     }
 
     receiveObscuredLines(obj) {
-        //console.log(`Received: ${JSON.stringify(obj)}`);
-
         let newObscuredLines = [];
 
         for (let l of obj) {
             newObscuredLines.push(ObscuredLine.deserialize(l));
         }
-        //console.log(`newObscuredLines = ${newObscuredLines}`);
         this.transformedLines = newObscuredLines;
     }
 
     recalculateObscuration() {
         this.transformedLines = calculateObscuredLines(this); 
-        // let serObscuredLines = calculateObscuredLines(this);
-        // console.log(`Received: ${serObscuredLines}`);
-
-        // let newObscuredLines = [];
-
-        // for (let l of serObscuredLines) {
-        //     newObscuredLines.push(ObscuredLine.deserialize(l));
-        // }
-
-        // this.transformedLines = newObscuredLines;
-
-        // const minZ = 1e-12;
-
-        // this.newTransformedLines = [];
-        // for (let l of this.lines) {
-        //     let outputDesc = {};
-        //     outputDesc.from = this.toViewspace(l[0]);
-        //     outputDesc.to = this.toViewspace(l[1]);
-
-        //     let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
-        //         (outputDesc.to.subset(math.index(2)) > -minZ);
-
-        //     if (behindCount == 2) {
-        //         continue;
-        //     } else if (behindCount == 1) {
-        //         if (outputDesc.from.subset(math.index(2)) > -minZ) {
-        //             let swap = outputDesc.from;
-        //             outputDesc.from = outputDesc.to;
-        //             outputDesc.to = swap;
-        //         }
-
-        //         let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
-        //         let toZ = outputDesc.to.subset(math.index(2)) + minZ;
-
-        //         let frac = -fromZ / (toZ - fromZ);
-        //         outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
-        //     }
-
-        //     let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
-        //     obscuredLine.origFrom = l[0];
-        //     obscuredLine.origTo = l[1];
-
-        //     for (let tr of this.obscurationTriangles) {
-        //         obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
-        //     }
-
-        //     // outputDesc.from = this.toProjectedSpace(outputDesc.from);
-        //     // outputDesc.to = this.toProjectedSpace(outputDesc.to);
-
-        //     // let coords = [];
-        //     // for (let coord of l) {
-        //     //     coords.push(this.toViewport(coord));
-        //     // }
-        //     // this.transformedLines.push(coords);
-        //     this.newTransformedLines.push(obscuredLine);
-        // }
-        // this.transformedLines = this.newTransformedLines;
     }
 
     updateRender() {
@@ -589,12 +527,12 @@ function update() {
     if (isFocusToggled)
         mesh.faceFocus();
 
-    if ((frame % (5 * targetFPS)) === 0) {
-        //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
-        console.log(`x=${mesh.pos.subset(math.index(0)).toFixed(2)}, ` +
-            `y=${mesh.pos.subset(math.index(1)).toFixed(2)}, ` +
-            `z=${mesh.pos.subset(math.index(2)).toFixed(2)}`);
-    }
+    // if ((frame % (5 * targetFPS)) === 0) {
+    //     //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
+    //     console.log(`x=${mesh.pos.subset(math.index(0)).toFixed(2)}, ` +
+    //         `y=${mesh.pos.subset(math.index(1)).toFixed(2)}, ` +
+    //         `z=${mesh.pos.subset(math.index(2)).toFixed(2)}`);
+    // }
 
     mesh.update();
 }
@@ -632,8 +570,6 @@ function onDOMReady() {
                 keyStates[id] = [nowTimestamp, nowTimestamp + 5 * delta];
             } else {
                 keyStates[id] = [nowTimestamp, Infinity];
-                console.log(`Key ${id} down`);
-                console.log(`  ${keyStates}`);
             }
 
             e.preventDefault();
@@ -647,9 +583,6 @@ function onDOMReady() {
             id = e.key;
         if (listenKeys.includes(id)) {
             keyStates[id] = null;
-
-            console.log(`Key ${id} up`);
-            console.log(`  ${keyStates}`);
 
             e.preventDefault();
             e.stopPropagation();
