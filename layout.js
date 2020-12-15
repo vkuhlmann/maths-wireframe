@@ -31,53 +31,133 @@ function onZipError(message) {
 
 function importFromFileEvent(e) {
     let a = e.target.files[0];
-    let blobReader = new zip.BlobReader(a);
-    zip.createReader(blobReader, (zipReader) => {
-        zipReader.getEntries((arr) => {
-            let result = null;
-            for (let entry of arr) {
-                if (entry.filename === "geogebra.xml") {
-                    result = entry;
-                    break;
-                }
-            }
-
-            if (result == null) {
-                onZipError("Unknown data structure");
-                return;
-            }
-
-            result.getData(new zip.TextWriter(), function(text) {
-                zipReader.close(() => {});
-                //console.log(text);
-
-                let parser = new DOMParser();
-                let xmlParsed = parser.parseFromString(text, "text/xml");
-                
-                let pointsXML = xmlParsed.querySelectorAll("geogebra > construction > element[type='point3d']");
-                for (let p of pointsXML) {
-                    let coordsXML = p.querySelector("coords");
-                    //console.log(coordsXML.outerHTML);
-                    let point = [
-                        parseFloat(coordsXML.getAttribute("x")),
-                        parseFloat(coordsXML.getAttribute("y")),
-                        parseFloat(coordsXML.getAttribute("z")),
-                        parseFloat(coordsXML.getAttribute("w"))
-                    ];
-
-                    mesh.addPoint(point);
-                }
-
-            }, function(current, total) {
-                // onprogress
-            });
-
-            console.log(arr);
-        });
-    }, onZipError);
+    let r = new GeoGebraReader(a, () => {
+        r.addPoints(mesh);
+        r.parseCommands();
+    });
 }
 
-function getTetraederPoints(mesh) {
+class GeoGebraReader {
+    constructor(a, callback) {
+        let blobReader = new zip.BlobReader(a);
+        this.facesMap = {};
+        this.edgesMap = {};
+        this.pointsMap = {};
+
+        const that = this;
+
+        zip.createReader(blobReader, (zipReader) => {
+            zipReader.getEntries((arr) => {
+                let result = null;
+                for (let entry of arr) {
+                    if (entry.filename === "geogebra.xml") {
+                        result = entry;
+                        break;
+                    }
+                }
+
+                if (result == null) {
+                    onZipError("Unknown data structure");
+                    return;
+                }
+
+                result.getData(new zip.TextWriter(), function (text) {
+                    zipReader.close(() => { });
+                    //console.log(text);
+
+                    let parser = new DOMParser();
+
+                    that.xmlParsed = parser.parseFromString(text, "text/xml");
+                    callback();
+
+                }, function (current, total) {
+                    // onprogress
+                });
+
+                console.log(arr);
+            });
+        }, onZipError);
+    }
+
+    addPoints(m) {
+        let pointsXML = this.xmlParsed.querySelectorAll("geogebra > construction > element[type='point3d']");
+        for (let p of pointsXML) {
+            let coordsXML = p.querySelector("coords");
+            //console.log(coordsXML.outerHTML);
+            let point = [
+                parseFloat(coordsXML.getAttribute("x")),
+                parseFloat(coordsXML.getAttribute("y")),
+                parseFloat(coordsXML.getAttribute("z")),
+                parseFloat(coordsXML.getAttribute("w"))
+            ];
+
+            this.pointsMap[p.getAttribute("label")] = point;
+
+            m.addPoint(point);
+        }
+    }
+
+    parseCube(xml) {
+        let input = xml.querySelector("input");
+        let output = xml.querySelector("output");
+
+        let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
+        output.getAttribute("a1"), output.getAttribute("a2"), output.getAttribute("a3"),
+        output.getAttribute("a4"), output.getAttribute("a5")];
+        let faceLabels = {};
+        faceLabels[output.getAttribute("a6")] = [pointLabels[0], pointLabels[1], pointLabels[2], pointLabels[3]];
+        faceLabels[output.getAttribute("a7")] = [pointLabels[0], pointLabels[3], pointLabels[7], pointLabels[4]];
+        faceLabels[output.getAttribute("a8")] = [pointLabels[0], pointLabels[1], pointLabels[5], pointLabels[4]];
+        faceLabels[output.getAttribute("a9")] = [pointLabels[1], pointLabels[2], pointLabels[6], pointLabels[5]];
+        faceLabels[output.getAttribute("a10")] = [pointLabels[2], pointLabels[3], pointLabels[7], pointLabels[6]];
+        faceLabels[output.getAttribute("a11")] = [pointLabels[4], pointLabels[5], pointLabels[6], pointLabels[7]];
+
+        let edgeLabels = {};
+        edgeLabels[output.getAttribute("a12")] = [pointLabels[0], pointLabels[3]];
+        edgeLabels[output.getAttribute("a13")] = [pointLabels[0], pointLabels[1]];
+        edgeLabels[output.getAttribute("a14")] = [pointLabels[1], pointLabels[2]];
+        edgeLabels[output.getAttribute("a15")] = [pointLabels[2], pointLabels[3]];
+        edgeLabels[output.getAttribute("a16")] = [pointLabels[0], pointLabels[4]];
+        edgeLabels[output.getAttribute("a17")] = [pointLabels[3], pointLabels[7]];
+        edgeLabels[output.getAttribute("a18")] = [pointLabels[4], pointLabels[7]];
+        edgeLabels[output.getAttribute("a19")] = [pointLabels[4], pointLabels[5]];
+        edgeLabels[output.getAttribute("a20")] = [pointLabels[1], pointLabels[5]];
+        edgeLabels[output.getAttribute("a21")] = [pointLabels[5], pointLabels[6]];
+        edgeLabels[output.getAttribute("a22")] = [pointLabels[2], pointLabels[6]];
+        edgeLabels[output.getAttribute("a23")] = [pointLabels[6], pointLabels[7]];
+
+        for (let e of Object.values(edgeLabels)) {
+            mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
+        }
+
+        let transf = math.identity(4);
+        for (let f of Object.values(faceLabels)) {
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[1]], this.pointsMap[f[2]]).transform(transf));
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[2]], this.pointsMap[f[3]]).transform(transf));
+        }
+    }
+
+    parseCommands() {
+        let commands = this.xmlParsed.querySelectorAll("geogebra > construction > command");
+        for (let command of commands) {
+            switch (command.getAttribute("name")) {
+                case "Cube": {
+                    console.log("Got a cube");
+                    this.parseCube(command);
+                    break;
+                }
+
+                default: {
+                    console.log(`Warning: unknown GeoGebra command ${command.getAttribute("name")}`);
+                    break;
+                }
+
+            }
+        }
+    }
+}
+
+function getTetrahedronPoints(mesh) {
     let distanceBetweenPoints = 10.0;
     // a^2 = b^2 + c^2 - 2bc*cos()
     // a^2 = 2*b^2 - b*b^2 * cos()
@@ -167,7 +247,26 @@ class Mesh {
         this.pitch = 0;
         this.yaw = 0;
 
+        this.frame = 0;
+
         this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
+        this.obscurationWorker = new Worker("lineObscurationWorker.js");
+
+        const currMesh = this;
+        this.obscurationWorker.onmessage = function (e) {
+            currMesh.receiveObscuredLines(e.data);
+            currMesh.launchObscurationWorker();
+        }
+        this.obscurationWorker.onerror = function (e) {
+            console.log("Error in obscurationWorker: " + e.message);
+            console.log(`At line ${e.lineno} of ${e.filename}`);
+        }
+        this.isObscurationWorkerRunning = false;
+    }
+
+    launchObscurationWorker() {
+        this.isObscurationWorkerRunning = true;
+        this.obscurationWorker.postMessage(this.serializeObscurationInput());
     }
 
     faceFocus() {
@@ -250,49 +349,48 @@ class Mesh {
 
         this.matrixToViewPort = math.multiply(this.projectionMatrix, this.viewMatrix);
 
-        this.transformedLines = [];
-        const minZ = 1e-12;
+        this.frame += 1;
+        let recalculateObscuration = (frame % 30) == 1;
+        recalculateObscuration = false;
 
-        for (let l of this.lines) {
-            let outputDesc = {};
-            outputDesc.from = this.toViewspace(l[0]);
-            outputDesc.to = this.toViewspace(l[1]);
-
-            let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
-                (outputDesc.to.subset(math.index(2)) > -minZ);
-
-            if (behindCount == 2) {
-                continue;
-            } else if (behindCount == 1) {
-                if (outputDesc.from.subset(math.index(2)) > -minZ) {
-                    let swap = outputDesc.from;
-                    outputDesc.from = outputDesc.to;
-                    outputDesc.to = swap;
-                }
-
-                let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
-                let toZ = outputDesc.to.subset(math.index(2)) + minZ;
-
-                let frac = -fromZ / (toZ - fromZ);
-                outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
-            }
-
-            let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
-
-            for (let tr of this.obscurationTriangles) {
-                obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
-            }
-
-            // outputDesc.from = this.toProjectedSpace(outputDesc.from);
-            // outputDesc.to = this.toProjectedSpace(outputDesc.to);
-
-            // let coords = [];
-            // for (let coord of l) {
-            //     coords.push(this.toViewport(coord));
-            // }
-            // this.transformedLines.push(coords);
-            this.transformedLines.push(obscuredLine);
+        if (!this.isObscurationWorkerRunning) {
+            this.launchObscurationWorker();
         }
+
+        if (recalculateObscuration) {
+            this.recalculateObscuration();
+        } else {
+            for (let l of this.transformedLines) {
+                l.from = this.toViewspace(l.origFrom);
+                l.to = this.toViewspace(l.origTo);
+            }
+        }
+
+    }
+
+    serializeObscurationInput() {
+        let serialized = {};
+        serialized.lines = this.lines;
+        serialized.viewMatrix = JSON.stringify(this.viewMatrix, math.replacer);
+        serialized.projectionMatrix = JSON.stringify(this.projectionMatrix, math.replacer);
+        serialized.obscurationTriangles = [];
+        for (let tr of this.obscurationTriangles) {
+            serialized.obscurationTriangles.push(tr.serialize());
+        }
+        return serialized;
+    }
+
+    receiveObscuredLines(obj) {
+        let newObscuredLines = [];
+
+        for (let l of obj) {
+            newObscuredLines.push(ObscuredLine.deserialize(l));
+        }
+        this.transformedLines = newObscuredLines;
+    }
+
+    recalculateObscuration() {
+        this.transformedLines = calculateObscuredLines(this); 
     }
 
     updateRender() {
@@ -352,9 +450,9 @@ class Mesh {
 
             circleEl.style.fill = "black";
 
-                // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
-                // lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
-                //     `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
+            // // lineEl.setAttribute("d", `M ${l[0].subset(math.index(0))} ${l[0].subset(math.index(1))} L ${l[1].subset(math.index(0))} ${l[1].subset(math.index(1))}`);
+            // lineEl.setAttribute("d", `M ${from.subset(math.index(0))} ${from.subset(math.index(1))} ` +
+            //     `L ${to.subset(math.index(0))} ${to.subset(math.index(1))}`);
 
             this.el.appendChild(circleEl);
         }
@@ -372,7 +470,7 @@ let mesh = null;
 
 let frame = 0;
 
-const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "6", "4", "8", "2"];
+const listenKeys = ["Space", "Shift", "KeyW", "KeyA", "KeyS", "KeyD", "Numpad6", "Numpad4", "Numpad8", "Numpad2"];
 let keyStates = {};
 
 let targetFPS = 30;
@@ -381,11 +479,13 @@ function update() {
     frame += 1;
     let speed = 4;
 
-    let nowTimestamp = new Date().getTime();
+    if (useRepeatingAntiGhost) {
+        let nowTimestamp = new Date().getTime();
 
-    for (let a in keyStates) {
-        if (keyStates[a] && nowTimestamp > keyStates[a][1])
-            keyStates[a] = null;
+        for (let a in keyStates) {
+            if (keyStates[a] && nowTimestamp > keyStates[a][1])
+                keyStates[a] = null;
+        }
     }
 
     if (keyStates["Space"]) {
@@ -412,27 +512,27 @@ function update() {
         //mesh.pos[0] = mesh.pos[0] - speed / targetFPS;
     }
 
-    if (keyStates["6"]) {
+    if (keyStates["Numpad6"]) {
         mesh.yaw += Math.PI / (2 * targetFPS);
-    } else if (keyStates["4"]) {
+    } else if (keyStates["Numpad4"]) {
         mesh.yaw -= Math.PI / (2 * targetFPS);
     }
 
-    if (keyStates["2"]) {
+    if (keyStates["Numpad2"]) {
         mesh.pitch += Math.PI / (2 * targetFPS);
-    } else if (keyStates["8"]) {
+    } else if (keyStates["Numpad8"]) {
         mesh.pitch -= Math.PI / (2 * targetFPS);
     }
 
     if (isFocusToggled)
         mesh.faceFocus();
 
-    if ((frame % (5 * targetFPS)) === 0) {
-        //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
-        console.log(`x=${mesh.pos.subset(math.index(0)).toFixed(2)}, ` +
-            `y=${mesh.pos.subset(math.index(1)).toFixed(2)}, ` +
-            `z=${mesh.pos.subset(math.index(2)).toFixed(2)}`);
-    }
+    // if ((frame % (5 * targetFPS)) === 0) {
+    //     //console.log(`x=${mesh.pos[0].toFixed(2)}, y=${mesh.pos[1].toFixed(2)}, z=${mesh.pos[2].toFixed(2)}`);
+    //     console.log(`x=${mesh.pos.subset(math.index(0)).toFixed(2)}, ` +
+    //         `y=${mesh.pos.subset(math.index(1)).toFixed(2)}, ` +
+    //         `z=${mesh.pos.subset(math.index(2)).toFixed(2)}`);
+    // }
 
     mesh.update();
 }
@@ -450,7 +550,7 @@ function onDOMReady() {
     mesh = new Mesh();
     mesh.update();
 
-    getTetraederPoints(mesh);
+    getTetrahedronPoints(mesh);
 
     mesh.update();
 
