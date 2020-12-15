@@ -1,17 +1,86 @@
 "use strict";
 
+function calculateObscuredLines(obj) {
+    const minZ = 1e-12;
+
+    let newTransformedLines = [];
+    for (let l of obj.lines) {
+        let outputDesc = {};
+        outputDesc.from = obj.toViewspace(l[0]);
+        outputDesc.to = obj.toViewspace(l[1]);
+
+        let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
+            (outputDesc.to.subset(math.index(2)) > -minZ);
+
+        if (behindCount == 2) {
+            continue;
+        } else if (behindCount == 1) {
+            if (outputDesc.from.subset(math.index(2)) > -minZ) {
+                let swap = outputDesc.from;
+                outputDesc.from = outputDesc.to;
+                outputDesc.to = swap;
+            }
+
+            let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
+            let toZ = outputDesc.to.subset(math.index(2)) + minZ;
+
+            let frac = -fromZ / (toZ - fromZ);
+            outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
+        }
+
+        let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
+        obscuredLine.origFrom = l[0];
+        obscuredLine.origTo = l[1];
+
+        for (let tr of obj.obscurationTriangles) {
+            obscuredLine.obscureByTriangle(tr.transform(math.transpose(obj.viewMatrix)), math.transpose(obj.projectionMatrix));
+        }
+
+        // outputDesc.from = this.toProjectedSpace(outputDesc.from);
+        // outputDesc.to = this.toProjectedSpace(outputDesc.to);
+
+        // let coords = [];
+        // for (let coord of l) {
+        //     coords.push(this.toViewport(coord));
+        // }
+        // this.transformedLines.push(coords);
+        newTransformedLines.push(obscuredLine);
+    }
+    return newTransformedLines;
+}
+
 function normalizeW(v) {
     return v.subset(math.index(3)) !== 0 ? math.divide(v, v.subset(math.index(3))) : math.matrix([100, 0, 0, 1]);
 }
 
 class Triangle {
     constructor(p0, p1, p2) {
-        this[0] = normalizeW(math.matrix(p0).resize([4], 1));
-        this[1] = normalizeW(math.matrix(p1).resize([4], 1));
-        this[2] = normalizeW(math.matrix(p2).resize([4], 1));
+        if (p1 === undefined) {
+            //console.log(`Parsing ${p0["0"]}`);
+            this[0] = JSON.parse(p0["0"], math.reviver);
+            this[1] = JSON.parse(p0["1"], math.reviver);
+            this[2] = JSON.parse(p0["2"], math.reviver);
 
+        } else {
+            this[0] = normalizeW(math.matrix(p0).resize([4], 1));
+            this[1] = normalizeW(math.matrix(p1).resize([4], 1));
+            this[2] = normalizeW(math.matrix(p2).resize([4], 1));
+        }
         this.length = 3;
     }
+
+    serialize() {
+        return {
+            "0": JSON.stringify(this[0], math.replacer), 
+            "1": JSON.stringify(this[1], math.replacer),
+            "2": JSON.stringify(this[2], math.replacer)
+        };
+    }
+
+    static deserialize(s) {
+        return new Triangle(s);
+    }
+
 
     transform(m) {
         return new Triangle(
@@ -64,6 +133,20 @@ class Line {
 
         this.isFromBounded = isFromBounded;
         this.isToBounded = isToBounded;
+    }
+
+    serialize() {
+        return {from: JSON.stringify(this.from, math.replacer), 
+            to: JSON.stringify(this.to, math.replacer),
+            isFromBounded: this.isFromBounded,
+            isToBounded: this.isToBounded};
+    }
+
+    static deserialize(obj) {
+        return new Line(
+            JSON.parse(obj.from, math.reviver), 
+            JSON.parse(obj.to, math.reviver), 
+            obj.isFromBounded, obj.isToBounded);
     }
 
     static Bounded(from, to) {
@@ -227,6 +310,25 @@ class ObscuredLine extends Line {
     constructor(from, to, isFromBounded = true, isToBounded = true) {
         super(from, to, isFromBounded, isToBounded);
         this.obscurationSwitches = [];
+    }
+
+    serialize() {
+        let obj = super.serialize();
+        obj.obscurationSwitches = [...this.obscurationSwitches];
+        obj.origFrom = (this.origFrom != null) ? JSON.stringify(this.origFrom, math.replacer) : null;
+        obj.origTo = (this.origTo != null) ? JSON.stringify(this.origTo, math.replacer) : null;
+        return obj;
+    }
+
+    static deserialize(obj) {
+        let ans = new ObscuredLine(
+            JSON.parse(obj.from, math.reviver), 
+            JSON.parse(obj.to, math.reviver), 
+            obj.isFromBounded, obj.isToBounded);
+        ans.obscurationSwitches = [...obj.obscurationSwitches];
+        ans.origFrom = (obj.origFrom != null) ? JSON.parse(obj.origFrom, math.reviver) : null;
+        ans.origTo = (obj.origTo != null) ? JSON.parse(obj.origTo, math.reviver) : null;
+        return ans;
     }
 
     obscurePart(p1, p2) {

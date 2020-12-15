@@ -215,6 +215,8 @@ function getTetrahedronPoints(mesh) {
     mesh.addPoint(point2);
     mesh.addPoint(point3);
 
+    console.log(JSON.stringify(math.matrix(point0), math.replacer));
+
     // mod->AddLines(points, transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point0, point1, point2 } *transf);
     // mod->AddObscuration(Canvas3D::MathTriangle{ point1, point2, point3 } *transf);
@@ -250,6 +252,23 @@ class Mesh {
         this.frame = 0;
 
         this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
+        this.obscurationWorker = new Worker("lineObscurationWorker.js");
+
+        const currMesh = this;
+        this.obscurationWorker.onmessage = function (e) {
+            currMesh.receiveObscuredLines(e.data);
+            currMesh.launchObscurationWorker();
+        }
+        this.obscurationWorker.onerror = function (e) {
+            console.log("Error in obscurationworker: " + e.message);
+            console.log(`At line ${e.lineno} of ${e.filename}`);
+        }
+        this.isObscurationWorkerRunning = false;
+    }
+
+    launchObscurationWorker() {
+        this.isObscurationWorkerRunning = true;
+        this.obscurationWorker.postMessage(this.serializeObscurationInput());
     }
 
     faceFocus() {
@@ -332,9 +351,13 @@ class Mesh {
 
         this.matrixToViewPort = math.multiply(this.projectionMatrix, this.viewMatrix);
 
-        const minZ = 1e-12;
         this.frame += 1;
         let recalculateObscuration = (frame % 30) == 1;
+        recalculateObscuration = false;
+
+        if (!this.isObscurationWorkerRunning) {
+            this.launchObscurationWorker();
+        }
 
         if (recalculateObscuration) {
             this.recalculateObscuration();
@@ -347,51 +370,89 @@ class Mesh {
 
     }
 
-    recalculateObscuration() {
-        this.newTransformedLines = [];
-        for (let l of this.lines) {
-            let outputDesc = {};
-            outputDesc.from = this.toViewspace(l[0]);
-            outputDesc.to = this.toViewspace(l[1]);
-
-            let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
-                (outputDesc.to.subset(math.index(2)) > -minZ);
-
-            if (behindCount == 2) {
-                continue;
-            } else if (behindCount == 1) {
-                if (outputDesc.from.subset(math.index(2)) > -minZ) {
-                    let swap = outputDesc.from;
-                    outputDesc.from = outputDesc.to;
-                    outputDesc.to = swap;
-                }
-
-                let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
-                let toZ = outputDesc.to.subset(math.index(2)) + minZ;
-
-                let frac = -fromZ / (toZ - fromZ);
-                outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
-            }
-
-            let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
-            obscuredLine.origFrom = l[0];
-            obscuredLine.origTo = l[1];
-
-            for (let tr of this.obscurationTriangles) {
-                obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
-            }
-
-            // outputDesc.from = this.toProjectedSpace(outputDesc.from);
-            // outputDesc.to = this.toProjectedSpace(outputDesc.to);
-
-            // let coords = [];
-            // for (let coord of l) {
-            //     coords.push(this.toViewport(coord));
-            // }
-            // this.transformedLines.push(coords);
-            this.newTransformedLines.push(obscuredLine);
+    serializeObscurationInput() {
+        let serialized = {};
+        serialized.lines = this.lines;
+        serialized.viewMatrix = JSON.stringify(this.viewMatrix, math.replacer);
+        serialized.projectionMatrix = JSON.stringify(this.projectionMatrix, math.replacer);
+        serialized.obscurationTriangles = [];
+        for (let tr of this.obscurationTriangles) {
+            serialized.obscurationTriangles.push(tr.serialize());
         }
-        this.transformedLines = this.newTransformedLines;
+        return serialized;
+    }
+
+    receiveObscuredLines(obj) {
+        console.log(`Received: ${JSON.stringify(obj)}`);
+
+        let newObscuredLines = [];
+
+        for (let l of obj) {
+            newObscuredLines.push(ObscuredLine.deserialize(l));
+        }
+        console.log(`newObscuredLines = ${newObscuredLines}`);
+        this.transformedLines = newObscuredLines;
+    }
+
+    recalculateObscuration() {
+        this.transformedLines = calculateObscuredLines(this); 
+        // let serObscuredLines = calculateObscuredLines(this);
+        // console.log(`Received: ${serObscuredLines}`);
+
+        // let newObscuredLines = [];
+
+        // for (let l of serObscuredLines) {
+        //     newObscuredLines.push(ObscuredLine.deserialize(l));
+        // }
+
+        // this.transformedLines = newObscuredLines;
+
+        // const minZ = 1e-12;
+
+        // this.newTransformedLines = [];
+        // for (let l of this.lines) {
+        //     let outputDesc = {};
+        //     outputDesc.from = this.toViewspace(l[0]);
+        //     outputDesc.to = this.toViewspace(l[1]);
+
+        //     let behindCount = (outputDesc.from.subset(math.index(2)) > -minZ) +
+        //         (outputDesc.to.subset(math.index(2)) > -minZ);
+
+        //     if (behindCount == 2) {
+        //         continue;
+        //     } else if (behindCount == 1) {
+        //         if (outputDesc.from.subset(math.index(2)) > -minZ) {
+        //             let swap = outputDesc.from;
+        //             outputDesc.from = outputDesc.to;
+        //             outputDesc.to = swap;
+        //         }
+
+        //         let fromZ = outputDesc.from.subset(math.index(2)) + minZ;
+        //         let toZ = outputDesc.to.subset(math.index(2)) + minZ;
+
+        //         let frac = -fromZ / (toZ - fromZ);
+        //         outputDesc.to = math.add(math.multiply(math.subtract(outputDesc.to, outputDesc.from), frac), outputDesc.from);
+        //     }
+
+        //     let obscuredLine = new ObscuredLine(outputDesc.from, outputDesc.to);
+        //     obscuredLine.origFrom = l[0];
+        //     obscuredLine.origTo = l[1];
+
+        //     for (let tr of this.obscurationTriangles) {
+        //         obscuredLine.obscureByTriangle(tr.transform(math.transpose(this.viewMatrix)), math.transpose(this.projectionMatrix));
+        //     }
+
+        //     // outputDesc.from = this.toProjectedSpace(outputDesc.from);
+        //     // outputDesc.to = this.toProjectedSpace(outputDesc.to);
+
+        //     // let coords = [];
+        //     // for (let coord of l) {
+        //     //     coords.push(this.toViewport(coord));
+        //     // }
+        //     // this.transformedLines.push(coords);
+        //     this.newTransformedLines.push(obscuredLine);
+        // }
+        // this.transformedLines = this.newTransformedLines;
     }
 
     updateRender() {
