@@ -137,6 +137,36 @@ class GeoGebraReader {
         }
     }
 
+    parsePyramid(xml) {
+        let input = xml.querySelector("input");
+        let output = xml.querySelector("output");
+
+        let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
+        input.getAttribute("a3")];
+        let faceLabels = {};
+        faceLabels[output.getAttribute("a1")] = [pointLabels[0], pointLabels[1], pointLabels[2]];
+        faceLabels[output.getAttribute("a2")] = [pointLabels[0], pointLabels[1], pointLabels[3]];
+        faceLabels[output.getAttribute("a3")] = [pointLabels[1], pointLabels[2], pointLabels[3]];
+        faceLabels[output.getAttribute("a4")] = [pointLabels[0], pointLabels[2], pointLabels[3]];
+
+        let edgeLabels = {};
+        edgeLabels[output.getAttribute("a5")] = [pointLabels[0], pointLabels[1]];
+        edgeLabels[output.getAttribute("a6")] = [pointLabels[1], pointLabels[2]];
+        edgeLabels[output.getAttribute("a7")] = [pointLabels[0], pointLabels[2]];
+        edgeLabels[output.getAttribute("a8")] = [pointLabels[0], pointLabels[3]];
+        edgeLabels[output.getAttribute("a9")] = [pointLabels[1], pointLabels[3]];
+        edgeLabels[output.getAttribute("a10")] = [pointLabels[2], pointLabels[3]];
+        
+        for (let e of Object.values(edgeLabels)) {
+            mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
+        }
+
+        let transf = math.identity(4);
+        for (let f of Object.values(faceLabels)) {
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[1]], this.pointsMap[f[2]]).transform(transf));
+        }
+    }
+
     parseCommands() {
         let commands = this.xmlParsed.querySelectorAll("geogebra > construction > command");
         for (let command of commands) {
@@ -144,6 +174,12 @@ class GeoGebraReader {
                 case "Cube": {
                     console.log("Got a cube");
                     this.parseCube(command);
+                    break;
+                }
+
+                case "Pyramid": {
+                    console.log("Got a pyramid");
+                    this.parsePyramid(command);
                     break;
                 }
 
