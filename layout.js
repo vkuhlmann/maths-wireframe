@@ -5,7 +5,12 @@ let isFocusToggled = false;
 $(document).ready(function () {
     onDOMReady();
 
-    $("#import-file").on("change", importFromFileEvent);
+    //$("#import-file").on("change", importFromFileEvent);
+
+    $("#fileImportForm").on("submit", () => {
+        importFromFile($("#selectedImportFile")[0].files[0]);
+        $("#importGeogebraOverlay").hide();
+    });
 
     toggleFocus = () => {
         if (isFocusToggled) {
@@ -23,6 +28,21 @@ $(document).ready(function () {
 
     toggleFocus();
 
+    $("#importGeogebraOverlay").click((e) => {
+        $("#importGeogebraOverlay").hide();
+    });
+
+    $("#geogebraOpenImport").click((e) => {
+        $("#importGeogebraOverlay").show();
+        $("#importGeogebraOverlay")[0].style.display = "flex";
+    });
+
+    $(".overlay-container").hide();
+
+    $(".overlay-card").click((e) => {
+        e.stopPropagation();
+        //e.preventDefault();
+    });
 });
 
 function onZipError(message) {
@@ -30,8 +50,11 @@ function onZipError(message) {
 }
 
 function importFromFileEvent(e) {
-    let a = e.target.files[0];
-    let r = new GeoGebraReader(a, () => {
+    importFromFile(e.target.files[0]);
+}
+
+function importFromFile(file) {
+    let r = new GeoGebraReader(file, () => {
         r.addPoints(mesh);
         r.parseCommands();
     });
@@ -156,7 +179,7 @@ class GeoGebraReader {
         edgeLabels[output.getAttribute("a8")] = [pointLabels[0], pointLabels[3]];
         edgeLabels[output.getAttribute("a9")] = [pointLabels[1], pointLabels[3]];
         edgeLabels[output.getAttribute("a10")] = [pointLabels[2], pointLabels[3]];
-        
+
         for (let e of Object.values(edgeLabels)) {
             mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
         }
@@ -426,7 +449,7 @@ class Mesh {
     }
 
     recalculateObscuration() {
-        this.transformedLines = calculateObscuredLines(this); 
+        this.transformedLines = calculateObscuredLines(this);
     }
 
     updateRender() {

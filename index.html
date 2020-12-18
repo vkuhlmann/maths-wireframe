@@ -42,14 +42,27 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="https://github.com/vkuhlmann/maths-wireframe"
-                    target="_blank">
+                    <a class="nav-link" href="https://github.com/vkuhlmann/maths-wireframe" target="_blank">
                         Project page
                     </a>
                 </li>
-                <li class="nav-item" style="display:flex;flex-flow:row nowrap;align-items:center;justify-content:center;margin-left:10px;margin-right:10px;
+                <!--<li class="nav-item" style="display:flex;flex-flow:row nowrap;align-items:center;justify-content:center;margin-left:10px;margin-right:10px;
                 padding-left:10px;padding-right:10px;border-left:1px solid #eee;border-right:1px solid #eee;">
                     <input id="import-file" type="file" >
+                </li>-->
+                <li class="nav-item" style="border-left:1px solid #ddd;margin-left:10px;margin-right:10px;"></li>
+                <li class="nav-item dropdown" style="margin-right:10px;">
+                    <button id="geogebraToggleDropdown" class="button-action dropdown-toggle" type="button"
+                        data-toggle="dropdown" aria-expanded="true">
+                        GeoGebra
+                    </button>
+                    <div id="geogebraDropdownContent" class="dropdown-menu">
+                        <a class="dropdown-item button" href="https://www.geogebra.org/3d" target="_blank">
+                            Open in new tab
+                        </a>
+                        <button type="button-action" class="button dropdown-item"
+                            id="geogebraOpenImport">Import</button>
+                    </div>
                 </li>
                 <li class="nav-item">
                     <button type="button" class="button-toggle" id="toggleFocus"
@@ -71,6 +84,30 @@
             style="z-index:2;position:relative;touch-action:none;">
             <rect x="-60" y="-25" width="100%" height="100%" fill="#eee" />
         </svg>
+
+        <div id="importGeogebraOverlay" class="overlay-container" style="display:none;flex-flow:row wrap;justify-content:center;align-items:center;
+        align-content:center;">
+            <div class="card overlay-card" style="width:40rem;width:min(90vw,40rem);">
+                <div class="card-body">
+                    <h5 class="card-title">Import file</h5>
+                    <p class="card-text">
+                        Make your construction in GeoGebra. Next, in GeoGebra, open the hambuger menu, select "Download
+                        as", "GeoGebra file (.ggb)". You can upload
+                        the file here, to import the construction. Note not all elements are supported yet.
+                    </p>
+
+                    <form id="fileImportForm">
+                        <div class="form-group">
+                            <label for="selectedImportFile">Choose GeoGebra file to import</label>
+                            <input class="form-control" id="selectedImportFile" type="file" accept=".ggb,.zip">
+                        </div>
+                        <div class="form-group">
+                            <button id="doFileImport" class="button-action form-control" type="submit">Import</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 
