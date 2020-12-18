@@ -7,9 +7,18 @@ $(document).ready(function () {
 
     //$("#import-file").on("change", importFromFileEvent);
 
-    $("#fileImportForm").on("submit", () => {
-        importFromFile($("#selectedImportFile")[0].files[0]);
+    $("#fileImportForm").on("submit", (e) => {
+        if ($("#clearOnImport")[0].checked) {
+            mesh.clear();
+        }
+        try {
+            importFromFile($("#selectedImportFile")[0].files[0]);
+        } catch(error) {
+            alert(`Error on importing: ${error}`);
+        }
+
         $("#importGeogebraOverlay").hide();
+        e.preventDefault();
     });
 
     toggleFocus = () => {
@@ -321,6 +330,20 @@ class Mesh {
             console.log(`At line ${e.lineno} of ${e.filename}`);
         }
         this.isObscurationWorkerRunning = false;
+    }
+
+    clear() {
+        this.obscurationTriangles = [];
+        this.lines = [];
+        this.points.length = 0;
+
+        this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
+        this.pos = math.matrix([0, 0, 20, 1]);
+
+        this.pitch = 0;
+        this.yaw = 0;
+        this.updateTransformation();
+        this.updateRender();
     }
 
     launchObscurationWorker() {
