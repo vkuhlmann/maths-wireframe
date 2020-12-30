@@ -5,7 +5,21 @@ let isFocusToggled = false;
 $(document).ready(function () {
     onDOMReady();
 
-    $("#import-file").on("change", importFromFileEvent);
+    //$("#import-file").on("change", importFromFileEvent);
+
+    $("#fileImportForm").on("submit", (e) => {
+        if ($("#clearOnImport")[0].checked) {
+            mesh.clear();
+        }
+        try {
+            importFromFile($("#selectedImportFile")[0].files[0]);
+        } catch(error) {
+            alert(`Error on importing: ${error}`);
+        }
+
+        $("#importGeogebraOverlay").hide();
+        e.preventDefault();
+    });
 
     toggleFocus = () => {
         if (isFocusToggled) {
@@ -23,6 +37,21 @@ $(document).ready(function () {
 
     toggleFocus();
 
+    $("#importGeogebraOverlay").click((e) => {
+        $("#importGeogebraOverlay").hide();
+    });
+
+    $("#geogebraOpenImport").click((e) => {
+        $("#importGeogebraOverlay").show();
+        $("#importGeogebraOverlay")[0].style.display = "flex";
+    });
+
+    $(".overlay-container").hide();
+
+    $(".overlay-card").click((e) => {
+        e.stopPropagation();
+        //e.preventDefault();
+    });
 });
 
 function onZipError(message) {
@@ -30,8 +59,11 @@ function onZipError(message) {
 }
 
 function importFromFileEvent(e) {
-    let a = e.target.files[0];
-    let r = new GeoGebraReader(a, () => {
+    importFromFile(e.target.files[0]);
+}
+
+function importFromFile(file) {
+    let r = new GeoGebraReader(file, () => {
         r.addPoints(mesh);
         r.parseCommands();
     });
@@ -137,6 +169,36 @@ class GeoGebraReader {
         }
     }
 
+    parsePyramid(xml) {
+        let input = xml.querySelector("input");
+        let output = xml.querySelector("output");
+
+        let pointLabels = [input.getAttribute("a0"), input.getAttribute("a1"), input.getAttribute("a2"),
+        input.getAttribute("a3")];
+        let faceLabels = {};
+        faceLabels[output.getAttribute("a1")] = [pointLabels[0], pointLabels[1], pointLabels[2]];
+        faceLabels[output.getAttribute("a2")] = [pointLabels[0], pointLabels[1], pointLabels[3]];
+        faceLabels[output.getAttribute("a3")] = [pointLabels[1], pointLabels[2], pointLabels[3]];
+        faceLabels[output.getAttribute("a4")] = [pointLabels[0], pointLabels[2], pointLabels[3]];
+
+        let edgeLabels = {};
+        edgeLabels[output.getAttribute("a5")] = [pointLabels[0], pointLabels[1]];
+        edgeLabels[output.getAttribute("a6")] = [pointLabels[1], pointLabels[2]];
+        edgeLabels[output.getAttribute("a7")] = [pointLabels[0], pointLabels[2]];
+        edgeLabels[output.getAttribute("a8")] = [pointLabels[0], pointLabels[3]];
+        edgeLabels[output.getAttribute("a9")] = [pointLabels[1], pointLabels[3]];
+        edgeLabels[output.getAttribute("a10")] = [pointLabels[2], pointLabels[3]];
+
+        for (let e of Object.values(edgeLabels)) {
+            mesh.lines.push([this.pointsMap[e[0]], this.pointsMap[e[1]]]);
+        }
+
+        let transf = math.identity(4);
+        for (let f of Object.values(faceLabels)) {
+            mesh.addObscurationTriangle(new Triangle(this.pointsMap[f[0]], this.pointsMap[f[1]], this.pointsMap[f[2]]).transform(transf));
+        }
+    }
+
     parseCommands() {
         let commands = this.xmlParsed.querySelectorAll("geogebra > construction > command");
         for (let command of commands) {
@@ -144,6 +206,12 @@ class GeoGebraReader {
                 case "Cube": {
                     console.log("Got a cube");
                     this.parseCube(command);
+                    break;
+                }
+
+                case "Pyramid": {
+                    console.log("Got a pyramid");
+                    this.parsePyramid(command);
                     break;
                 }
 
@@ -262,6 +330,20 @@ class Mesh {
             console.log(`At line ${e.lineno} of ${e.filename}`);
         }
         this.isObscurationWorkerRunning = false;
+    }
+
+    clear() {
+        this.obscurationTriangles = [];
+        this.lines = [];
+        this.points.length = 0;
+
+        this.focus = math.matrix([0.0, 0.0, 0.0, 1.0]);
+        this.pos = math.matrix([0, 0, 20, 1]);
+
+        this.pitch = 0;
+        this.yaw = 0;
+        this.updateTransformation();
+        this.updateRender();
     }
 
     launchObscurationWorker() {
@@ -390,7 +472,7 @@ class Mesh {
     }
 
     recalculateObscuration() {
-        this.transformedLines = calculateObscuredLines(this); 
+        this.transformedLines = calculateObscuredLines(this);
     }
 
     updateRender() {
